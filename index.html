@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCampus Planner</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; transition: background-color 0.3s; }
+        .light-mode { background-color: #f4f4f4; color: #333; }
+        .dark-mode { background-color: #333; color: #f4f4f4; }
+        header { background-color: #4CAF50; color: white; padding: 1rem; text-align: center; }
+        nav { background-color: #333; color: white; padding: 0.5rem; }
+        nav ul { list-style: none; padding: 0; display: flex; justify-content: center; }
+        nav li { margin: 0 1rem; }
+        nav a { color: white; text-decoration: none; }
+        .container { padding: 2rem; max-width: 1200px; margin: auto; }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+        .card { background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .dark-mode .card { background: #555; }
+        .deadline-near { color: red; }
+        .profile { text-align: center; margin-bottom: 2rem; }
+        .profile img { border-radius: 50%; width: 100px; height: 100px; }
+        button { background: #4CAF50; color: white; border: none; padding: 0.5rem 1rem; cursor: pointer; }
+        input, select { padding: 0.5rem; margin: 0.5rem 0; width: 100%; }
+        .hidden { display: none; }
+        .timer { font-size: 2rem; color: #4CAF50; }
+    </style>
+</head>
+<body class="light-mode">
+    <header>
+        <h1>MyCampus Planner</h1>
+        <p>Website Pengelola Aktivitas Akademik dan Harian Mahasiswa</p>
+        <button id="theme-toggle">Toggle Dark Mode</button>
+    </header>
+    <nav>
+        <ul>
+            <li><a href="#dashboard">Dashboard</a></li>
+            <li><a href="#courses">Mata Kuliah</a></li>
+            <li><a href="#assignments">Upload Tugas</a></li>
+            <li><a href="#deadlines">Jadwal Deadline</a></li>
+            <li><a href="#schedule">Jadwal Makan & Istirahat</a></li>
+            <li><a href="#profile">Profil</a></li>
+        </ul>
+    </nav>
+    <div class="container">
+        <!-- Profil Mahasiswa -->
+        <section id="profile" class="profile">
+            <h2>Profil Mahasiswa</h2>
+            <img id="profile-img" src="https://via.placeholder.com/100" alt="Foto Profil">
+            <p><strong>Nama:</strong> <span id="student-name">Nama Mahasiswa</span></p>
+            <p><strong>NIM:</strong> <span id="student-nim">12345678</span></p>
+            <p><strong>Jurusan:</strong> <span id="student-major">Teknik Informatika</span></p>
+            <button onclick="editProfile()">Edit Profil</button>
+        </section>
+
+        <!-- Dashboard Utama -->
+        <section id="dashboard">
+            <h2>Dashboard Utama</h2>
+            <div class="dashboard">
+                <div class="card">
+                    <h3>Ringkasan Mata Kuliah Hari Ini</h3>
+                    <p id="today-courses">Tidak ada kuliah hari ini.</p>
+                </div>
+                <div class="card">
+                    <h3>Notifikasi Deadline</h3>
+                    <ul id="deadline-notifications"></ul>
+                </div>
+                <div class="card">
+                    <h3>Status Upload Tugas</h3>
+                    <ul id="assignment-status"></ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Fitur Mata Kuliah -->
+        <section id="courses" class="hidden">
+            <h2>Fitur Mata Kuliah</h2>
+            <button onclick="addCourse()">Tambah Mata Kuliah</button>
+            <ul id="course-list"></ul>
+            <h3>Jadwal Kuliah Mingguan</h3>
+            <div id="weekly-schedule"></div>
+        </section>
+
+        <!-- Fitur Upload Tugas -->
+        <section id="assignments" class="hidden">
+            <h2>Fitur Upload Tugas</h2>
+            <form id="upload-form">
+                <select id="course-select" required>
+                    <option value="">Pilih Mata Kuliah</option>
+                </select>
+                <input type="file" id="file-upload" accept=".pdf,.doc,.docx,.jpg,.png" required>
+                <textarea id="description" placeholder="Deskripsi Tugas"></textarea>
+                <button type="submit">Upload</button>
+            </form>
+            <ul id="uploaded-assignments"></ul>
+        </section>
+
+        <!-- Jadwal Deadline -->
+        <section id="deadlines" class="hidden">
+            <h2>Jadwal Deadline</h2>
+            <button onclick="addDeadline()">Tambah Deadline</button>
+            <ul id="deadline-list"></ul>
+        </section>
+
+        <!-- Jadwal Makan & Istirahat -->
+        <section id="schedule" class="hidden">
+            <h2>Jadwal Makan & Istirahat</h2>
+            <button onclick="addMeal()">Tambah Jadwal Makan</button>
+            <button onclick="addBreak()">Tambah Jadwal Istirahat</button>
+            <ul id="meal-list"></ul>
+            <ul id="break-list"></ul>
+            <div id="timer" class="timer hidden">00:00:00</div>
+            <button onclick="startTimer()">Mulai Timer</button>
+        </section>
+    </div>
+
+    <script>
+        // Data simulasi (gunakan localStorage untuk persistensi)
+        let courses = JSON.parse(localStorage.getItem('courses')) || [];
+        let assignments = JSON.parse(localStorage.getItem('assignments')) || [];
+        let deadlines = JSON.parse(localStorage.getItem('deadlines')) || [];
+        let meals = JSON.parse(localStorage.getItem('meals')) || [];
+        let breaks = JSON.parse(localStorage.getItem('breaks')) || [];
+        let profile = JSON.parse(localStorage.getItem('profile')) || { name: 'Intan Gombo', nim: 'C0223526', major: 'Akutansi', img: 'https://via.placeholder.com/100' };
+
+        // Fungsi navigasi
+        document.querySelectorAll('nav a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('section').forEach(sec => sec.classList.add('hidden'));
+                document.getElementById(link.getAttribute('href').substring(1)).classList.remove('hidden');
+            });
+        });
+
+        // Toggle tema
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            document.body.classList.toggle('light-mode');
+        });
+
+        // Profil
+        function editProfile() {
+            const name = prompt('Nama:', profile.name);
+            const nim = prompt('NIM:', profile.nim);
+            const major = prompt('Jurusan:', profile.major);
+            
+            // Tambahkan input untuk gambar
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*'; // Hanya gambar
+            fileInput.style.display = 'block';
+            fileInput.style.margin = '10px 0';
+            
+            // Buat dialog sederhana untuk upload
+            const dialog = document.createElement('div');
+            dialog.style.position = 'fixed';
+            dialog.style.top = '50%';
+            dialog.style.left = '50%';
+            dialog.style.transform = 'translate(-50%, -50%)';
+            dialog.style.background = 'white';
+            dialog.style.padding = '20px';
+            dialog.style.border = '1px solid #ccc';
+            dialog.style.zIndex = '1000';
+            dialog.innerHTML = '<h3>Edit Profil</h3><p>Nama, NIM, Jurusan sudah diisi. Pilih gambar baru jika ingin mengubah:</p>';
+            dialog.appendChild(fileInput);
+            
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Simpan';
+            saveBtn.onclick = () => {
+                if (name && nim && major) {
+                    profile = { name, nim, major, img: profile.img }; // Default img lama
+                    if (fileInput.files[0]) {
+                        const file = fileInput.files[0];
+                        if (file.size > 2 * 1024 * 1024) { // Maks 2MB
+                            alert('Ukuran gambar terlalu besar! Maksimal 2MB.');
+                            return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            profile.img = e.target.result; // Data URL
+                            localStorage.setItem('profile', JSON.stringify(profile));
+                            updateProfile();
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        localStorage.setItem('profile', JSON.stringify(profile));
+                        updateProfile();
+                    }
+                }
+                document.body.removeChild(dialog);
+            };
+            dialog.appendChild(saveBtn);
+            
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Batal';
+            cancelBtn.onclick = () => document.body.removeChild(dialog);
+            dialog.appendChild(cancelBtn);
+            
+            document.body.appendChild(dialog);
+        }
+        
+        function updateProfile() {
+            document.getElementById('student-name').textContent = profile.name;
+            document.getElementById('student-nim').textContent = profile.nim;
+            document.getElementById('student-major').textContent = profile.major;
+            document.getElementById('profile-img').src = profile.img || 'https://via.placeholder.com/100';
+        }
+        updateProfile();
+
+        // Mata Kuliah
+        function addCourse() {
+            const name = prompt('Nama Mata Kuliah:');
+            if (name) {
+                courses.push({ name, schedule: 'Senin 08:00' }); // Simulasi jadwal
+                localStorage.setItem('courses', JSON.stringify(courses));
+                updateCourses();
+            }
+        }
+        function updateCourses() {
+            const list = document.getElementById('course-list');
+            list.innerHTML = courses.map(c => `<li>${c.name} - ${c.schedule} <button onclick="deleteCourse('${c.name}')">Hapus</button></li>`).join('');
+            document.getElementById('course-select').innerHTML = '<option value="">Pilih Mata Kuliah</option>' + courses.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        }
+        function deleteCourse(name) {
+            courses = courses.filter(c => c.name !== name);
+            localStorage.setItem('courses', JSON.stringify(courses));
+            updateCourses();
+        }
+        updateCourses();
+
+        // Upload Tugas
+        document.getElementById('upload-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const course = document.getElementById('course-select').value;
+            const file = document.getElementById('file-upload').files[0];
+            const desc = document.getElementById('description').value;
+            if (course && file) {
+                assignments.push({ course, file: file.name, desc, status: 'Sudah Upload' });
+                localStorage.setItem('assignments', JSON.stringify(assignments));
+                updateAssignments();
+            }
+        });
+        function updateAssignments() {
+            const list = document.getElementById('uploaded-assignments');
+            list.innerHTML = assignments.map(a => `<li>${a.course}: ${a.file} - ${a.desc} - ${a.status}</li>`).join('');
+            updateDashboard();
+        }
+
+        // Deadline
+        function addDeadline() {
+            const course = prompt('Mata Kuliah:');
+            const date = prompt('Tanggal Deadline (YYYY-MM-DD):');
+            if (course && date) {
+                deadlines.push({ course, date });
+                localStorage.setItem('deadlines', JSON.stringify(deadlines));
+                updateDeadlines();
+            }
+        }
+        function updateDeadlines() {
+            const list = document.getElementById('deadline-list');
+            const now = new Date();
+            list.innerHTML = deadlines.sort((a,b) => new Date(a.date) - new Date(b.date)).map(d => {
+                const diff = Math.ceil((new Date(d.date) - now) / (1000 * 60 * 60 * 24));
+                return `<li class="${diff <= 1 ? 'deadline-near' : ''}">${d.course} - ${d.date} (${diff} hari lagi)</li>`;
+            }).join('');
+            updateDashboard();
+        }
+
+        // Jadwal Makan & Istirahat
+        function addMeal() {
+            const time = prompt('Waktu Makan (HH:MM):');
+            if (time) {
+                meals.push(time);
+                localStorage.setItem('meals', JSON.stringify(meals));
+                updateMeals();
+            }
+        }
+        function addBreak() {
+            const time = prompt('Waktu Istirahat (HH:MM):');
+            if (time) {
+                breaks.push(time);
+                localStorage.setItem('breaks', JSON.stringify(breaks));
+                updateBreaks();
+            }
+        }
+        function updateMeals() {
+            document.getElementById('meal-list').innerHTML = meals.map(m => `<li>Makan: ${m}</li>`).join('');
+        }
+        function updateBreaks() {
+            document.getElementById('break-list').innerHTML = breaks.map(b => `<li>Istirahat: ${b}</li>`).join('');
+        }
+
+        // Timer sederhana
+        let timerInterval;
+        function startTimer() {
+            document.getElementById('timer').classList.remove('hidden');
+            let time = 0;
+            timerInterval = setInterval(() => {
+                time++;
+                document.getElementById('timer').textContent = new Date(time * 1000).toISOString().substr(11, 8);
+            }, 1000);
+        }
+
+        // Update Dashboard
+        function updateDashboard() {
+            document.getElementById('today-courses').textContent = courses.length ? courses.map(c => c.name).join(', ') : 'Tidak ada kuliah hari ini.';
+            document.getElementById('deadline-notifications').innerHTML = deadlines.slice(0,3).map(d => `<li>${d.course} - ${d.date}</li>`).join('');
+            document.getElementById('assignment-status').innerHTML = assignments.map(a => `<li>${a.course}: ${a.status}</li>`).join('');
+        }
+        updateDashboard();
+        updateDeadlines();
+    </script>
+</body>
+  </html>
